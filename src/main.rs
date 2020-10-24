@@ -2,6 +2,7 @@ mod args;
 mod chunk;
 mod chunk_type;
 mod commands;
+mod error;
 mod png;
 
 pub type Error = Box<dyn std::error::Error>;
