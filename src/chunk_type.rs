@@ -1,6 +1,6 @@
 use crate::error::PngMeError;
-use std::fmt;
 use std::convert::TryFrom;
+use std::fmt;
 use std::str::FromStr;
 
 /// Byte representation of a PNG version 1.2 Chunk.
@@ -41,9 +41,9 @@ fn is_valid_byte(byte: u8) -> bool {
 }
 
 impl fmt::Display for ChunkType {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      write!(f, "{}", String::from_utf8(self.0.to_vec()).unwrap())
-  }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from_utf8(self.0.to_vec()).unwrap())
+    }
 }
 
 impl TryFrom<[u8; 4]> for ChunkType {
