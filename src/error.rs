@@ -6,6 +6,8 @@ pub enum PngMeError {
     InvalidBytes(String),
     InvalidChunkType,
     InvalidCRC,
+    InvalidPNGFileHeader,
+    UnexistentChunkType,
 }
 
 impl fmt::Display for PngMeError {
@@ -20,6 +22,10 @@ impl fmt::Display for PngMeError {
             PngMeError::InvalidBytes(chunk) => write!(f, "The chunk {} has invalid bytes", chunk),
             PngMeError::InvalidChunkType => write!(f, "Invalid chunk type provided"),
             PngMeError::InvalidCRC => write!(f, "CRC IEEE Checksum didn't matched"),
+            PngMeError::InvalidPNGFileHeader => write!(f, "Invalid PNG file header"),
+            PngMeError::UnexistentChunkType => write!(f, "The provided chunk type doesn't exists"),
         }
     }
 }
+
+impl std::error::Error for PngMeError {}
