@@ -1,7 +1,7 @@
 <div>
   <div align="center" style="display: block; text-align: center;">
     <img
-      src="https://raw.githubusercontent.com/EstebanBorai/pngme/main/docs/broken_file_icon.jpg"
+      src="https://raw.githubusercontent.com/EstebanBorai/pngme/main/docs/png_icon.jpg"
       height="120"
       width="120"
     />
