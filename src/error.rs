@@ -8,6 +8,8 @@ pub enum PngMeError {
     InvalidCRC,
     InvalidPNGFileHeader,
     UnexistentChunkType,
+    UnableToCreateFile(String),
+    UnableToWriteOutputFile(String),
 }
 
 impl fmt::Display for PngMeError {
@@ -24,6 +26,12 @@ impl fmt::Display for PngMeError {
             PngMeError::InvalidCRC => write!(f, "CRC IEEE Checksum didn't matched"),
             PngMeError::InvalidPNGFileHeader => write!(f, "Invalid PNG file header"),
             PngMeError::UnexistentChunkType => write!(f, "The provided chunk type doesn't exists"),
+            PngMeError::UnableToCreateFile(err_message) => {
+                write!(f, "Unable to create file: {}", err_message)
+            }
+            PngMeError::UnableToWriteOutputFile(err_message) => {
+                write!(f, "Unable to write output file: {}", err_message)
+            }
         }
     }
 }

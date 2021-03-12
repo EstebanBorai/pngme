@@ -1,7 +1,6 @@
 use crc::crc32::checksum_ieee;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Display;
-use std::str::from_utf8;
 
 use crate::error::PngMeError;
 use crate::{chunk_type::ChunkType, Result};
@@ -42,7 +41,7 @@ impl Chunk {
     }
 
     pub fn data_as_string(&self) -> Result<String> {
-        Ok(from_utf8(self.data.as_slice())?.to_string())
+        Ok(String::from_utf8_lossy(self.data.as_slice()).to_string())
     }
 
     pub fn crc(&self) -> u32 {
@@ -65,11 +64,11 @@ impl Display for Chunk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Chunk {{ \nlength: {length},\nchunk_type: {chunk_type},\ndata: {data:?},\ncrc: {crc},\n }}",
-            length=self.length,
-            chunk_type=self.chunk_type,
-            data=self.data,
-            crc=self.crc,
+            "length: {length}\nchunk_type: {chunk_type}\ndata: {data:?}\ncrc: {crc}\n",
+            length = self.length,
+            chunk_type = self.chunk_type,
+            data = self.data_as_string().unwrap(),
+            crc = self.crc,
         )
     }
 }

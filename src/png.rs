@@ -1,5 +1,8 @@
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};
+use std::fs::{read as read_file, File};
+use std::io::Write;
+use std::path::PathBuf;
 
 use crate::chunk::Chunk;
 use crate::error::PngMeError;
@@ -61,6 +64,21 @@ impl Png {
             .copied()
             .chain(self.chunks().iter().flat_map(|c| c.as_bytes()))
             .collect()
+    }
+
+    pub fn from_file(path: PathBuf) -> Result<Self> {
+        let file = read_file(path)?;
+
+        Png::try_from(file.as_slice())
+    }
+
+    pub fn write_file(&self, path: PathBuf) -> Result<()> {
+        let mut file =
+            File::create(path).map_err(|e| PngMeError::UnableToCreateFile(e.to_string()))?;
+        file.write(self.as_bytes().as_slice())
+            .map_err(|e| PngMeError::UnableToWriteOutputFile(e.to_string()))?;
+
+        Ok(())
     }
 }
 
