@@ -1,43 +1,35 @@
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "pngme", about = "Hide secret messages in PNG files")]
-pub enum Args {
-    Encode(EncodeArgs),
-    Decode(DecodeArgs),
-    Remove(RemoveArgs),
-    Print(PrintArgs),
+use clap::{Parser, Subcommand};
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+pub struct Cli {
+    #[clap( value_parser)]
+    #[command(subcommand)]
+    pub command: Commands,
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "encode", about = "Inserts a message into a PNG file")]
-pub struct EncodeArgs {
-    pub file_path: PathBuf,
-    pub chunk_type: String,
-    pub message: String,
-    pub output_file: Option<PathBuf>,
-}
-
-#[derive(StructOpt, Debug)]
-#[structopt(name = "decode", about = "Decodes the specified chunk type")]
-pub struct DecodeArgs {
-    pub file_path: PathBuf,
-    pub chunk_type: String,
-}
-
-#[derive(StructOpt, Debug)]
-#[structopt(
-    name = "remove",
-    about = "Remove a message with the provided chunk type"
-)]
-pub struct RemoveArgs {
-    pub file_path: PathBuf,
-    pub chunk_type: String,
-}
-
-#[derive(StructOpt, Debug)]
-#[structopt(name = "print", about = "Print chunks stored in the PNG file")]
-pub struct PrintArgs {
-    pub file_path: PathBuf,
+#[derive(Subcommand, Debug)]
+pub enum Commands {
+    /// Encode a Message into a PNG file(
+    Encode{
+        png_file_path: PathBuf,
+        chunk_type: String,
+        message: String,
+    },
+    /// Decode message of a PNG file
+    Decode{
+        png_file_path: PathBuf,
+        chunk_type: String,
+    },
+    /// Remove an encoded Message from a PNG file
+    Remove {
+        png_file_path: PathBuf,
+        chunk_type: String,
+    },
+    /// Print PNG file information
+    Print {
+        path: PathBuf,
+    },
 }

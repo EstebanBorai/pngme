@@ -1,20 +1,57 @@
-use structopt::StructOpt;
+use std::str::FromStr;
 
-mod args;
-mod chunk;
-mod chunk_type;
-mod commands;
-mod error;
-mod png;
-
-pub type Error = Box<dyn std::error::Error>;
-pub type Result<T> = std::result::Result<T, Error>;
+use clap::Parser;
+use pngme::{
+    args::{Cli, Commands},
+    chunk::Chunk,
+    chunk_type::ChunkType,
+    png::Png,
+    Result,
+};
 
 fn main() -> Result<()> {
-    match args::Args::from_args() {
-        args::Args::Encode(args) => commands::encode(args),
-        args::Args::Decode(args) => commands::decode(args),
-        args::Args::Remove(args) => commands::remove(args),
-        args::Args::Print(args) => commands::print(args),
-    }
+    let cli = Cli::parse();
+
+    return match &cli.command {
+        Commands::Encode {
+            png_file_path,
+            chunk_type,
+            message,
+        } => {
+            let mut png = Png::from_path(png_file_path)?;
+
+            let chunk_type = ChunkType::from_str(&chunk_type)?;
+            let chunk = Chunk::new(chunk_type, message.as_bytes().to_vec());
+
+            png.append_chunk(chunk);
+            png.save_changes(png_file_path)?;
+
+            Ok(())
+        }
+        Commands::Decode { png_file_path, chunk_type } => {
+            let png: Png = Png::from_path(png_file_path)?;
+
+            if let Some(data) = png.chunk_by_type(chunk_type) {
+                println!("{:#?}", data.data_as_string());
+                Ok(())
+            } else {
+                Err("message enot found".into())
+            }
+        }
+        Commands::Remove { png_file_path, chunk_type } => {
+            let mut png = Png::from_path(png_file_path)?;
+
+            png.remove_chunk(chunk_type)?;
+            png.save_changes(png_file_path)?;
+
+            Ok(())
+        }
+        Commands::Print { path } => {
+            let png = Png::from_path(path)?;
+
+            println!("{:#?}", png.to_string());
+
+            Ok(())
+        }
+    };
 }
