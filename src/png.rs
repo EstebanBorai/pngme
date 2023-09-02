@@ -1,25 +1,27 @@
-use std::convert::{TryFrom, TryInto};
-use std::fmt::{self, Display, Formatter};
-use std::fs::{read as read_file, File};
-use std::io::Write;
-use std::path::PathBuf;
+use std::{
+    fmt::{self, Display, Formatter},
+    fs,
+    path::PathBuf,
+};
 
-use crate::chunk::Chunk;
-use crate::error::PngMeError;
-use crate::Error;
-use crate::Result;
+use super::Result;
+use crate::{chunk::Chunk, error::PngMeError};
 
-/// The first eight bytes of a PNG file always contain the following (decimal) values
-///
-/// Reference: http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html
-const PNG_FILE_SIGNATURE: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
-
-/// A PNG file consists of a PNG signature followed by a series of chunks
 pub struct Png {
     chunks: Vec<Chunk>,
 }
 
 impl Png {
+    const STANDARD_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+
+    pub fn from_path(path: &PathBuf) -> Result<Self> {
+        let bytes = fs::read(path)?;
+        let bytes: Vec<u8> = bytes.try_into()?;
+        let png: Png = Png::try_from(bytes.as_ref())?;
+
+        Ok(png)
+    }
+
     pub fn from_chunks(chunks: Vec<Chunk>) -> Self {
         Self { chunks }
     }
@@ -30,22 +32,22 @@ impl Png {
 
     pub fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
         if let Some(index) = self
-            .chunks()
+            .chunks
             .iter()
             .position(|c| c.chunk_type().bytes() == chunk_type.as_bytes())
         {
-            return Ok(self.chunks.remove(index));
+            Ok(self.chunks.remove(index))
+        } else {
+            Err(Box::new(PngMeError::UnexistentChunkType))
         }
-
-        Err(Box::new(PngMeError::UnexistentChunkType))
     }
 
     pub fn header(&self) -> &[u8; 8] {
-        &PNG_FILE_SIGNATURE
+        &Self::STANDARD_HEADER
     }
 
     pub fn chunks(&self) -> &[Chunk] {
-        self.chunks.as_slice()
+        &self.chunks
     }
 
     pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
@@ -59,71 +61,49 @@ impl Png {
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
-        PNG_FILE_SIGNATURE
+        Self::STANDARD_HEADER
             .iter()
             .copied()
-            .chain(self.chunks().iter().flat_map(|c| c.as_bytes()))
+            .chain(self.chunks.iter().flat_map(|c| c.as_bytes()))
             .collect()
     }
 
-    pub fn from_file(path: PathBuf) -> Result<Self> {
-        let file = read_file(path)?;
-
-        Png::try_from(file.as_slice())
-    }
-
-    pub fn write_file(&self, path: PathBuf) -> Result<()> {
-        let mut file =
-            File::create(path).map_err(|e| PngMeError::UnableToCreateFile(e.to_string()))?;
-        file.write(self.as_bytes().as_slice())
-            .map_err(|e| PngMeError::UnableToWriteOutputFile(e.to_string()))?;
-
+    pub fn save_changes(&self, path: &PathBuf) -> super::Result<()> {
+        fs::write(path, self.as_bytes())?;
         Ok(())
     }
 }
 
 impl TryFrom<&[u8]> for Png {
-    type Error = Error;
+    type Error = super::Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
-        // First 8 bytes from PNG file must be exact
-        // the same as `PNG_FILE_SIGNATURE`
-        let header: [u8; 8] = value[..8].try_into()?;
+        let header = &value[..8];
 
-        if !header.eq(&PNG_FILE_SIGNATURE) {
+        if *header != Self::STANDARD_HEADER {
             return Err(Box::new(PngMeError::InvalidPNGFileHeader));
         }
 
-        let mut chunks: Vec<Chunk> = Vec::new();
-        let mut cursor: usize = 8;
+        let mut chunks: Vec<Chunk> = vec![];
 
-        // We skip the first 8 bytes which represents
-        // the PNG file header and extract chunks
+        let mut cursor = 8usize;
+
         while cursor < value.len() {
-            // The first 4 bytes from a Chunk represents
-            // the length of the chunk
             let length = (u32::from_be_bytes(value[cursor..cursor + 4].try_into()?) + 12) as usize;
 
-            match Chunk::try_from(&value[cursor..cursor + length]) {
-                Ok(chunk) => {
-                    // Pushes the chunk to the `chunks` Vectors
-                    chunks.push(chunk);
-                    // "Moves the cursor" the number of bytes ahead
-                    cursor += length;
-                }
-                Err(_) => {
-                    panic!("Invalid chunk provided.");
-                }
-            }
+            let chunk = Chunk::try_from(&value[cursor..cursor + length])?;
+
+            chunks.push(chunk);
+            cursor += length;
         }
 
-        Ok(Png { chunks })
+        Ok(Png::from_chunks(chunks))
     }
 }
 
 impl Display for Png {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Png {{ header: {:?} }}", PNG_FILE_SIGNATURE)?;
+        write!(f, "Png {{ header: {:?} }}", Self::STANDARD_HEADER)?;
 
         for chunk in self.chunks().iter() {
             write!(f, "{}\t", chunk)?;
@@ -139,7 +119,6 @@ mod tests {
     use crate::chunk::Chunk;
     use crate::chunk_type::ChunkType;
     use std::convert::TryFrom;
-    use std::str::FromStr;
 
     fn testing_chunks() -> Vec<Chunk> {
         let mut chunks = Vec::new();
@@ -156,7 +135,7 @@ mod tests {
         Png::from_chunks(chunks)
     }
 
-    fn chunk_from_strings(chunk_type: &str, data: &str) -> Result<Chunk> {
+    fn chunk_from_strings(chunk_type: &str, data: &str) -> super::Result<Chunk> {
         use std::str::FromStr;
 
         let chunk_type = ChunkType::from_str(chunk_type)?;
@@ -180,7 +159,7 @@ mod tests {
             .flat_map(|chunk| chunk.as_bytes())
             .collect();
 
-        let bytes: Vec<u8> = PNG_FILE_SIGNATURE
+        let bytes: Vec<u8> = Png::STANDARD_HEADER
             .iter()
             .chain(chunk_bytes.iter())
             .copied()
@@ -274,7 +253,7 @@ mod tests {
     fn test_as_bytes() {
         let png = Png::try_from(&PNG_FILE[..]).unwrap();
         let actual = png.as_bytes();
-        let expected: Vec<u8> = PNG_FILE.iter().copied().collect();
+        let expected: Vec<u8> = PNG_FILE.to_vec();
         assert_eq!(actual, expected);
     }
 
@@ -285,7 +264,7 @@ mod tests {
             .flat_map(|chunk| chunk.as_bytes())
             .collect();
 
-        let bytes: Vec<u8> = PNG_FILE_SIGNATURE
+        let bytes: Vec<u8> = Png::STANDARD_HEADER
             .iter()
             .chain(chunk_bytes.iter())
             .copied()
